@@ -26,8 +26,10 @@ const client = new Client({
         clientId: "client-one"/* ,
         session: sessionCfg */
     }),
-    puppeteer: { headless: true }
+    puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-extensions'] }
 });
+
+
 
 client.initialize();
 
@@ -307,7 +309,8 @@ app.post('/send-message', (req, res) => {
         });
     });
 });
-puppetter.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+
+
 server.listen(8000, function () {
     console.log('App running on *:', 8000);
 });
