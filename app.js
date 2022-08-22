@@ -42,7 +42,20 @@ const client = new Client({
         clientId: "client-one"/* ,
         session: sessionCfg */
     }),
-    puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-extensions'] }
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-extensions',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',//this one doesn't work in windows
+            '--disable-gpu'
+        ]
+    }
 });
 
 client.initialize();
@@ -55,15 +68,19 @@ client.initialize();
     })
 }); */
 
+const checkRegisteredNumber = async function (number) {
+    const isRegistered = await client.isRegisteredUser(number);
+    return isRegistered;
+}
 
 //socket.io
 io.on('connection', function (socket) {
 
-    fungsinya(client, socket);
+    fungsinya(client, socket, checkRegisteredNumber);
 
 })
 
-routingnya(body, validationResult, phoneNumberFormatter, app, client);
+routingnya(body, validationResult, phoneNumberFormatter, app, client, checkRegisteredNumber);
 
 server.listen(8000, function () {
     console.log('App running on *:', 8000);

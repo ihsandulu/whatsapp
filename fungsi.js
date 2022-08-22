@@ -2,7 +2,7 @@
 
 
 
-function fungsinya(client, socket) {
+function fungsinya(client, socket, checkRegisteredNumber) {
 
     socket.emit('message', 'Tersambung...');
 

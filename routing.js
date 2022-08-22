@@ -1,32 +1,44 @@
-function routingnya(body, validationResult, phoneNumberFormatter, app, client) {
+function routingnya(body, validationResult, phoneNumberFormatter, app, client, checkRegisteredNumber) {
 
     app.get('/', (req, res) => {
         res.sendFile('index.html', { root: __dirname });
     });
 
-    app.get('/send-message', (req, res) => {
-        const number = req.query.number;
-        const message = req.query.message;
+    app.get('/send-message',
+        [body('number').notEmpty(),
+        body('message').notEmpty(),],
+        async (req, res) => {
+            const number = phoneNumberFormatter(req.query.number);
+            const message = req.query.message;
 
-        // client.sendMessage('628567148813@c.us', number + '=' + message);
-        client.sendMessage(number, message).then(response => {
-            res.status(200).json({
-                status: true,
-                response: response
-            });
-        }).catch(err => {
-            res.status(500).json({
-                status: false,
-                response: number + '=' + message
+            try {
+                const isRegisteredNumber = await checkRegisteredNumber(number);
+            } catch (err) {
+                res.status(422).json({
+                    status: false,
+                    message: 'Nomor tidak teregister!'
+                });
+            }
+
+            // client.sendMessage('628567148813@c.us', number + '=' + message);
+            client.sendMessage(number, message).then(response => {
+                res.status(200).json({
+                    status: true,
+                    message: response
+                });
+            }).catch(err => {
+                res.status(500).json({
+                    status: false,
+                    message: number + '=' + message
+                });
             });
         });
-    });
 
     //send message API
     app.post('/send-message',
-        body('number').notEmpty(),
-        body('message').notEmpty()
-        , (req, res) => {
+        [body('number').notEmpty(),
+        body('message').notEmpty(),],
+        async (req, res) => {
             const errors = validationResult(req).formatWith(({ msg }) => {
                 return msg;
             });
@@ -39,16 +51,25 @@ function routingnya(body, validationResult, phoneNumberFormatter, app, client) {
             const number = phoneNumberFormatter(req.body.number);
             const message = req.body.message;
 
+            try {
+                const isRegisteredNumber = await checkRegisteredNumber(number);
+            } catch (err) {
+                res.status(422).json({
+                    status: false,
+                    message: 'Nomor tidak teregister!'
+                });
+            }
+
             // client.sendMessage('628567148813@c.us', number + '=' + message);
             client.sendMessage(number, message).then(response => {
                 res.status(200).json({
                     status: true,
-                    response: response
+                    message: response
                 });
             }).catch(err => {
                 res.status(500).json({
                     status: false,
-                    response: number + '=' + message
+                    message: number + '=' + message
                 });
             });
         });
