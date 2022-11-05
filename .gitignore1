@@ -1,0 +1,5 @@
+.wwebjs_auth/
+whatsapp-web.js/
+node_modules/
+package.json
+package-lock.json

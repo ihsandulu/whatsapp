@@ -1,0 +1,3 @@
+1. Go to the DNS service provider to configure DNS resolution by referring to Domain name resolution.
+
+2. Have the domain name hosted on Alibaba Cloud DNS by referring to How do I configure resolution for domain names that are not registered in Alibaba Cloud on Alibaba Cloud DNS. Then you can configure DNS resolution on Alibaba Cloud DNS.

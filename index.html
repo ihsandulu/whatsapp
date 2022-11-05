@@ -2,46 +2,172 @@
 <html>
 
 <head>
+    <title class="title">Qithy Whatsapp</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Latest compiled JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
     <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"
         integrity="sha384-7EyYLQZgWBi67fBtVxw60/OWl1kjsfrPFcaU0pp0nAh+i8FD068QogUvg85Ewy1k"
         crossorigin="anonymous"></script>
     <style>
         .hide {
-            display: none;
+            display: none !important;
         }
 
         .show {
+            display: block;
+        }
+
+        .client {
+            border: 1px solid #ccc;
+            padding: 20px;
+            box-sizing: border-box;
             display: block;
         }
     </style>
 </head>
 
 <body>
-    <div id="app">
-        <h2>Whatsapp Bot</h2>
-        <p>Made by Qithy.com:</p>
+    <nav class="navbar navbar-expand-sm navbar-dark bg-success text-white">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <img src="images/qithy.png" alt="Qithy.com" style="width:40px;" class="rounded-pill">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mynavbar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mynavbar">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="onepage.html">One Page</a>
+                    </li>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="javascript:void(0)">Link</a>
+                    </li>
+                </ul>
+                <form class="d-flex">
+                    <input class="form-control me-2" type="text" placeholder="Search">
+                    <button class="btn btn-primary" type="button">Search</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+    <div class="container pt-5">
+        <h1 class="title">Qithy Whatsapp</h1>
+        <div>Now : <span id="time"></span></div>
+        <p>Made by Qithy.com</p>
+        <div class="mt-4 p-5 bg-success text-white rounded">
+            <form action="/action_page.php">
+                <div class="mb-3 mt-3">
+                    <label for="client-id" class="form-label">ID:</label>
+                    <input type="text" class="form-control" id="client-id" placeholder="Masukkan ID">
+                </div>
+                <div class="mb-3">
+                    <label for="pwd" class="form-label">Deskripsi:</label>
+                    <textarea rows="3" class="form-control" id="client-description"
+                        placeholder="Masukkan Deskripsi"></textarea>
+                </div>
+                <button type="button" class="btn btn-primary" id="add-client-btn">Tambah Client</button>
+            </form>
+        </div>
 
-        <img src="" alt="whatsapp qithy.com" width="300" height="300" id="qrcode">
-        <div id="message"></div>
+
+        <hr />
+        <div class="client-container row">
+            <div class="client server hide col-md-4">
+                <h2 class="title">Server</h2>
+                <div class="description">Default Whatsapp</div>
+                <img src="" alt="whatsapp qithy.com" width="300" height="300" id="qrcode">
+                <div id="message"></div>
+            </div>
+        </div>
     </div>
+    <div class="mb-5">&nbsp;</div>
+
+    <script src="./dotinv.js"></script>
     <script>
+        var socket = io.connect(url, { path: '/socket.io' });
         $(document).ready(function () {
             $("#qrcode").hide();
-            var socket = io.connect('http://localhost:8000', { path: '/socket.io' });
-            socket.on('message', function (msg) {
-                $("#message").text(msg);
+
+            $('#add-client-btn').click(function () {
+                let clientID = $('#client-id').val();
+                let clientDes = $('#client-description').val();
+                let template = $('.client').first().clone().removeClass('server').removeClass('hide').addClass(clientID);
+                template.find('.title').html(clientID);
+                template.find('.description').html(clientDes);
+                template.find('#message').html('');
+                $('.client-container').append(template);
+
+                socket.emit('create-session', {
+                    id: clientID,
+                    description: clientDes
+                });
+
+                cekstatus(clientID);
             });
-            socket.on('qr', function (src) {
-                $("#qrcode").attr('src', src);
+
+
+            socket.on('title', function (data) {
+                $('.title').html(data);
             });
-            socket.on('dqr', function (dqr) {
-                if (dqr == 0) {
-                    $("#qrcode").hide();
+            socket.on('time', function (data) {
+                $('#time').html(data);
+            });
+            socket.on('restart', function (data) {
+                location.reload();
+            });
+            socket.on('message', function (data) {
+                // alert(data.id + '=' + data.message);
+                $(`.client.${data.id} > #message`).text(data.message);
+            });
+            socket.on('qr', function (data) {
+                // alert(data.id + '=' + data.src);
+                $(`.client.${data.id} #qrcode`).attr('src', data.src);
+            });
+            socket.on('dqr', function (data) {
+                // alert(data.id + '=' + data.dqr);
+                if (data.dqr == 0) {
+                    $(`.client.${data.id} #qrcode`).hide();
                 } else {
-                    $("#qrcode").show();
+                    $(`.client.${data.id} #qrcode`).show();
                 }
             });
+
+            //init
+            socket.on('init', (data) => {
+                let clientID = data.id;
+                let clientDes = data.description;
+                let template = $('.client').first().clone().removeClass('server').removeClass('hide').addClass(clientID);
+                template.find('.title').html(clientID);
+                template.find('.description').html(clientDes);
+                template.find('#message').html('');
+                $('.client-container').append(template);
+
+                cekstatus(clientID);
+            });
+
+            $('.client').removeClass('hide').show();
+
+            function cekstatus(clientID) {
+                // alert(clientID);
+                socket.emit('cekstatus', {
+                    id: clientID
+                });
+            }
+
+            cekstatus('server');
+
         });
     </script>
 </body>

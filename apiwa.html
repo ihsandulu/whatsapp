@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title class="title">Qithy Whatsapp</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Latest compiled JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"
+        integrity="sha384-7EyYLQZgWBi67fBtVxw60/OWl1kjsfrPFcaU0pp0nAh+i8FD068QogUvg85Ewy1k"
+        crossorigin="anonymous"></script>
+    <style>
+        .hide {
+            display: none !important;
+        }
+
+        .show {
+            display: block;
+        }
+
+        .client {
+            border: 1px solid #ccc;
+            padding: 20px;
+            box-sizing: border-box;
+            display: block;
+            height: 450px;
+        }
+
+        #loadingp {
+            position: relative;
+        }
+
+        #loading {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translate(-50%, 0);
+        }
+
+
+
+        #logout {
+            position: relative;
+            top: 200px;
+            left: 50%;
+            transform: translate(-50%, 0);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container pt-5">
+        <h1 class="title">Qithy Whatsapp</h1>
+        <div>Now : <span id="time"></span></div>
+        <p>Made by Qithy.com</p>
+        <hr />
+        <div class="client-container row">
+            <div class="client server hide col-md-6" align="center">
+                <h2 class="title">Server</h2>
+                <div class="description">Default Whatsapp</div>
+                <img src="" alt="whatsapp qithy.com" width="300" height="300" id="qrcode">
+                <div id="message"></div>
+                <div id="loadingp">
+                    <div id="loading">
+                        <div class="fa-3x"><i class="fa-solid fa-cog fa-spin"></i></div>
+                        <span class="ploading">Loading...</span>
+                    </div>
+                </div>
+                <div id="logout">
+                    <button onclick="logout()" id="logoutclient" class="btn btn-danger btn-block ">Logout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="mb-5" id="test">&nbsp;</div>
+    <script src="./dotinv.js"></script>
+    <script>
+        var socket = io.connect(url, { path: '/socket.io' });
+        const $_GET = {};
+        const args = location.search.substr(1).split(/&/);
+        for (let i = 0; i < args.length; ++i) {
+            const tmp = args[i].split(/=/);
+            if (tmp[0] != "") {
+                $_GET[decodeURIComponent(tmp[0])] = decodeURIComponent(tmp.slice(1).join("").replace("+", " "));
+                console.log($_GET['hola']);
+            }//::END if
+        }//::END for
+        function logout() {
+            let clientID = $_GET['server'];
+            // alert(clientID);
+            socket.emit('logout', {
+                id: clientID
+            });
+        }
+        $(document).ready(function () {
+            $("#qrcode").hide();
+            function buat() {
+
+                let clientID = $_GET['server'];
+                let clientDes = $_GET['desc'];
+                let template = $('.client').first().clone().removeClass('server').removeClass('hide').addClass(clientID);
+                template.find('.title').html(clientID);
+                template.find('.description').html(clientDes);
+                template.find('#message').html('');
+                $('.client-container').append(template);
+                socket.emit('create-session', {
+                    id: clientID,
+                    description: clientDes
+                });
+
+                $(`.client.${clientID} #logout`).hide();
+                cekstatus(clientID);
+                // alert("Harap menunggu!\nKami sedang mempersiapkan Server Anda.");
+            }
+            setTimeout(function () {
+                buat();
+            }, 1000);
+
+            socket.on('title', function (data) {
+                $('.title').html(data);
+            });
+            socket.on('time', function (data) {
+                $('#time').html(data);
+            });
+            socket.on('restart', function (data) {
+                if (data == 'yes') {
+                    location.reload();
+                }
+            });
+            socket.on('message', async function (data) {
+                // alert(data.id + '=' + data.message);
+                $(`.client.${data.id} > #message`).text(data.message);
+            });
+            socket.on('qr', async function (data) {
+                // alert(data.id + '=' + data.src);
+                $(`.client.${data.id} #qrcode`).attr('src', data.src);
+                $(`.client.${data.id} #logout`).hide();
+            });
+            socket.on('dqr', async function (data) {
+                // alert(data.id + '=' + data.dqr);
+                if (data.dqr == 0) {
+                    $(`.client.${data.id} #qrcode`).hide();
+                } else {
+                    $(`.client.${data.id} #qrcode`).show();
+                }
+            });
+            socket.on('logout', async function (data) {
+                // alert(data.id + '=' + data.dqr);
+                if (data.logout == 1) {
+                    $(`.client.${data.id} #logout`).show();
+                } else {
+                    $(`.client.${data.id} #logout`).hide();
+                }
+            });
+            socket.on('loading', async function (data) {
+                // alert(data.id + '=' + data.loading);
+                if (data.loading == 1) {
+                    $(`.client.${data.id} #loading`).show();
+                } else {
+                    $(`.client.${data.id} #loading`).hide();
+                }
+            });
+
+            // $('.client').removeClass('hide').show();
+
+            function cekstatus(clientID) {
+                // alert(clientID);
+                socket.emit('cekstatus', {
+                    id: clientID
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -2,47 +2,81 @@
 
 
 
-function fungsinya(client, socket, checkRegisteredNumber) {
+function fungsinya(client, socket, qrcode, checkRegisteredNumber, MessageMedia, axios, id, stat, app, mulai) {
 
-    socket.emit('message', 'Tersambung...');
+    setInterval(function () {
+        try {
+            stat(client, socket, id);
+        } catch (e) {
+            socket.emit('message', { id: id, message: 'Gagal memuat status...' });
+        }
 
-    client.on('loading_screen', (percent, message) => {
-        console.log('LOADING SCREEN', percent, message);
-        socket.emit('message', 'LOADING SCREEN' + percent + ' ' + message);
-    });
+    }, 60000);
 
     client.on('qr', (qr) => {
-        // Generate and scan this code with your phone
-        console.log('QR RECEIVED', qr);
+        console.log('id=', id);
         // qrcode.generate(qr, { small: true });
+        socket.emit('message', { id: id, message: 'Silahkan scan di sini!' });
         qrcode.toDataURL(qr, (err, url) => {
-            socket.emit('qr', url);
-            socket.emit('dqr', '1');
-            socket.emit('message', qr + '<br/>' + url);
+            socket.emit('qr', { id: id, src: url });
+            socket.emit('dqr', { id: id, dqr: 1 });
+            socket.emit('loading', { id: id, loading: 0 });
+            console.log('QR RECEIVED', qr);
         });
     });
 
-    client.on('authenticated', () => {
-        console.log('AUTHENTICATED');
-        socket.emit('message', 'AUTHENTICATED');
+
+
+
+    socket.on('cekstatus', function (data) {
+        if (data.id == 'server') {
+            try {
+                stat(client, socket, data.id);
+            } catch (e) {
+                socket.emit('message', { id: id, message: 'Gagal memuat status...' });
+            }
+        }
     });
+
+
+    client.on('loading_screen', (percent, message) => {
+        console.log('LOADING SCREEN', percent, message);
+        socket.emit('message', { id: id, message: 'LOADING SCREEN' + percent + ' ' + message });
+    });
+
+
+
+    client.on('authenticated', () => {
+        console.log(id+' AUTHENTICATED');
+        socket.emit('message', { id: id, message: 'Terotentikasi...' });
+        socket.emit('loading', { id: id, loading: 0 });
+    });
+
+
 
     client.on('auth_failure', msg => {
         // Fired if session restore was unsuccessful
         console.error('AUTHENTICATION FAILURE', msg);
-        socket.emit('message', 'AUTHENTICATION FAILURE ' + msg);
+        socket.emit('message', { id: id, message: 'Otentikasi Gagal! ' + msg });
+        socket.emit('loading', { id: id, loading: 0 });
     });
 
     client.on('ready', () => {
-        console.log('READY');
-        socket.emit('message', 'Whatsapp Bot berjalan...');
-        socket.emit('dqr', '0');
+        console.log(id + ' READY');
+        socket.emit('message', { id: id, message: 'Whatsapp Bot berjalan...' });
+        socket.emit('dqr', { id: id, dqr: 0 });
+        socket.emit('loading', { id: id, loading: 0 });
+        socket.emit('logout', { id: id, logout: 1 });
     });
 
     client.on('disconnected', (reason) => {
         console.log('Client was logged out', reason);
-        socket.emit('message', 'Anda telah logout...' + reason);
-        socket.emit('dqr', '1');
+        socket.emit('message', { id: id, message: 'Anda telah logout...' + reason });
+        // socket.emit('dqr', { id: id, dqr: '1' });        
+        socket.emit('loading', { id: id, loading: 1 });
+        socket.emit('logout', { id: id, logout: 0 });
+        client.destroy();
+        client.initialize();
     });
 
     /* process.on("SIGINT", async () => {
@@ -52,16 +86,17 @@ function fungsinya(client, socket, checkRegisteredNumber) {
     }) */
 
     client.on('message', async msg => {
-        console.log('MESSAGE RECEIVED', msg);
+        // console.log('MESSAGE RECEIVED', msg);
+        console.log('MESSAGE RECEIVED SERVER : ', id);
 
         if (msg.body === '!ping reply') {
             // Send a new message as a reply to the current one
-            msg.reply('pong');
+            msg.reply('pong' + id);
 
-        } else if (msg.body === '!ping') {
+        } else if (msg.body === 'ping') {
             // Send a new message to the same chat
-            client.sendMessage('628567148813@c.us', 'pong');
-            socket.emit('message', 'pong');
+            client.sendMessage('628567148813@c.us', 'pong' + id);
+            socket.emit('message', { id: id, message: 'pong' });
 
         } else if (msg.body.startsWith('!sendto ')) {
             // Direct send a new message to specific id
@@ -115,13 +150,13 @@ function fungsinya(client, socket, checkRegisteredNumber) {
             let chat = await msg.getChat();
             if (chat.isGroup) {
                 msg.reply(`
-                *Group Details*
-                Name: ${chat.name}
-                Description: ${chat.description}
-                Created At: ${chat.createdAt.toString()}
-                Created By: ${chat.owner.user}
-                Participant count: ${chat.participants.length}
-            `);
+                        *Group Details*
+                        Name: ${chat.name}
+                        Description: ${chat.description}
+                        Created At: ${chat.createdAt.toString()}
+                        Created By: ${chat.owner.user}
+                        Participant count: ${chat.participants.length}
+                    `);
             } else {
                 msg.reply('This command can only be used in a group!');
             }
@@ -131,29 +166,28 @@ function fungsinya(client, socket, checkRegisteredNumber) {
         } else if (msg.body === '!info') {
             let info = client.info;
             client.sendMessage(msg.from, `
-            *Connection info*
-            User name: ${info.pushname}
-            My number: ${info.wid.user}
-            Platform: ${info.platform}
-        `);
+                    *Connection info*
+                    User name: ${info.pushname}
+                    My number: ${info.wid.user}
+                    Platform: ${info.platform}
+                `);
         } else if (msg.body === '!mediainfo' && msg.hasMedia) {
             const attachmentData = await msg.downloadMedia();
             msg.reply(`
-            *Media info*
-            MimeType: ${attachmentData.mimetype}
-            Filename: ${attachmentData.filename}
-            Data (length): ${attachmentData.data.length}
-        `);
+                    *Media info*
+                    MimeType: ${attachmentData.mimetype}
+                    Filename: ${attachmentData.filename}
+                    Data (length): ${attachmentData.data.length}
+                `);
         } else if (msg.body === '!quoteinfo' && msg.hasQuotedMsg) {
             const quotedMsg = await msg.getQuotedMessage();
-
             quotedMsg.reply(`
-            ID: ${quotedMsg.id._serialized}
-            Type: ${quotedMsg.type}
-            Author: ${quotedMsg.author || quotedMsg.from}
-            Timestamp: ${quotedMsg.timestamp}
-            Has Media? ${quotedMsg.hasMedia}
-        `);
+                    ID: ${quotedMsg.id._serialized}
+                    Type: ${quotedMsg.type}
+                    Author: ${quotedMsg.author || quotedMsg.from}
+                    Timestamp: ${quotedMsg.timestamp}
+                    Has Media? ${quotedMsg.hasMedia}
+                `);
         } else if (msg.body === '!resendmedia' && msg.hasQuotedMsg) {
             const quotedMsg = await msg.getQuotedMessage();
             if (quotedMsg.hasMedia) {
@@ -222,6 +256,7 @@ function fungsinya(client, socket, checkRegisteredNumber) {
         } else if (msg.body === '!reaction') {
             msg.react('👍');
         }
+
     });
 }
 module.exports = {
